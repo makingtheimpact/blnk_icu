@@ -4,17 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener</title>
-    <link rel="apple-touch-icon" sizes="180x180" href="../static/favicons/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="../static/favicons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../static/favicons/favicon-16x16.png">
-    <link rel="manifest" href="../static/favicons/site.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicons/favicon-16x16.png">
+    <link rel="manifest" href="/static/favicons/site.webmanifest">
     <link href="/static/css/output.css" rel="stylesheet">
+    <script src="https://www.google.com/recaptcha/api.js?render=6Lc7i6EqAAAAAEYMvkY3oa2kNderBTTwQNZ31acO"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-8">
     <div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md">
+        <img src="/static/images/logo-full-color.svg" alt="blnk.icu Logo" class="w-16 h-16 mx-auto mb-4">
         <h1 class="text-3xl font-bold text-center mb-8">Shorten Your URL</h1>
         <form id="shortenForm" action="/shorten" method="post" class="space-y-4">
             <input type="text" name="original_url" placeholder="Enter your URL" class="w-full p-2 border rounded">
+            <input type="hidden" name="g-recaptcha-response" id="recaptchaResponse">
             <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Shorten</button>
         </form>
         <div id="result" class="mt-8 hidden">
@@ -33,19 +36,36 @@
     <script>
         document.getElementById('shortenForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const form = e.target;
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: new FormData(form)
-            });
-            const data = await response.json();
             
-            // Show the result div
-            const resultDiv = document.getElementById('result');
-            const shortUrlLink = document.getElementById('shortUrl');
-            resultDiv.classList.remove('hidden');
-            shortUrlLink.href = data.short_url;
-            shortUrlLink.textContent = data.short_url;
+            try {
+                // Execute reCAPTCHA v3
+                grecaptcha.ready(async function() {
+                    const token = await grecaptcha.execute('6Lc7i6EqAAAAAEYMvkY3oa2kNderBTTwQNZ31acO', {action: 'submit'});
+                    document.getElementById('recaptchaResponse').value = token;
+                    
+                    const form = e.target;
+                    const formData = new FormData(form);
+                    
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const resultDiv = document.getElementById('result');
+                        const shortUrlLink = document.getElementById('shortUrl');
+                        resultDiv.classList.remove('hidden');
+                        shortUrlLink.href = data.short_url;
+                        shortUrlLink.textContent = data.short_url;
+                    } else {
+                        const error = await response.json();
+                        alert(error.detail || 'An error occurred');
+                    }
+                });
+            } catch (error) {
+                alert('Network error occurred. Please try again.');
+            }
         });
 
         function copyToClipboard() {
